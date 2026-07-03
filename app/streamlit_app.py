@@ -60,6 +60,18 @@ CHATBOT_DESCRIPTION = getattr(cfg, 'CHATBOT_DESCRIPTION', 'Votre assistant AutoM
 
 st.set_page_config(page_title=CHATBOT_NAME, page_icon=CHATBOT_ICON, layout="wide")
 
+
+def _normalize_dataframe_for_streamlit(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None:
+        return df
+    safe_df = df.copy()
+    for col in safe_df.select_dtypes(include=['object']).columns:
+        try:
+            safe_df[col] = safe_df[col].astype(str)
+        except Exception:
+            safe_df[col] = safe_df[col].apply(lambda x: '' if x is None else str(x))
+    return safe_df
+
 # --- Initialisation de la session ---
 def initialize_session():
     """Initialise ou réinitialise l'état de la session."""
@@ -255,7 +267,7 @@ def display_chat():
             if msg.get("content_type", "text") == "text":
                 st.markdown(content, unsafe_allow_html=True)
             elif msg.get("content_type") == "dataframe":
-                st.dataframe(content, width='stretch')
+                st.dataframe(_normalize_dataframe_for_streamlit(content), width='stretch')
             elif msg.get("content_type") == "plot":
                 st.plotly_chart(content, width='stretch')
             elif msg.get("content_type") == "mixed":
@@ -266,7 +278,7 @@ def display_chat():
                 if "dataframes" in content:
                     for df in content.get("dataframes", []):
                         if df is not None:
-                            st.dataframe(df, width='stretch')
+                            st.dataframe(_normalize_dataframe_for_streamlit(df), width='stretch')
                 if "plots" in content:
                     for plot in content.get("plots", []):
                         if plot:
@@ -838,7 +850,7 @@ def main():
                     st.rerun()
 
                 if st.session_state.get('target_column') and not analysis_done:
-                    if st.button("🔍 Analyser le Dataset", use_container_width=True, type="primary"):
+                    if st.button("🔍 Analyser le Dataset", width='stretch', type="primary"):
                         perform_analysis()
                         st.rerun()
             if analysis_done:
@@ -847,7 +859,7 @@ def main():
         if analysis_done:
             with st.expander("3. Prétraitement", expanded=analysis_done and not preprocessing_done):
                 if not preprocessing_done:
-                    if st.button("🔧 Lancer le Prétraitement", use_container_width=True, type="primary"):
+                    if st.button("🔧 Lancer le Prétraitement", width='stretch', type="primary"):
                         perform_preprocessing()
                         st.rerun()
             if preprocessing_done:
@@ -856,14 +868,14 @@ def main():
         if preprocessing_done:
             with st.expander("4. Lancer AutoML", expanded=preprocessing_done and not automl_done):
                 if not automl_done:
-                    if st.button("🚀 Lancer l'AutoML", use_container_width=True, type="primary"):
+                    if st.button("🚀 Lancer l'AutoML", width='stretch', type="primary"):
                         perform_automl()
                         st.rerun()
             if automl_done:
                 st.success("AutoML terminé.")
 
         st.divider()
-        if st.button("🔄 Recommencer", use_container_width=True):
+        if st.button("🔄 Recommencer", width='stretch'):
             initialize_session()
             st.rerun()
 

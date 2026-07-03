@@ -144,9 +144,30 @@ class Preprocessor:
         """Transform les données (après fit)"""
         if self.preprocessor is None:
             raise ValueError("Le preprocessor doit être fit d'abord")
-        
+
         return self.preprocessor.transform(X)
     
+    def _can_stratify(self, y: pd.Series) -> bool:
+        if y is None or len(y) < 2:
+            return False
+
+        value_counts = y.value_counts(dropna=False)
+        if len(value_counts) < 2:
+            return False
+
+        if (value_counts < 2).any():
+            return False
+
+        if self.test_size <= 0 or self.test_size >= 1:
+            n_test = int(self.test_size)
+        else:
+            n_test = int(round(self.test_size * len(y)))
+
+        if n_test < len(value_counts):
+            return False
+
+        return True
+
     def split_data(self, X: np.ndarray, y: pd.Series) -> Tuple[np.ndarray, np.ndarray, pd.Series, pd.Series]:
         """
         Divise les données en train et test
@@ -154,10 +175,14 @@ class Preprocessor:
         Returns:
             Tuple (X_train, X_test, y_train, y_test)
         """
+        stratify = None
+        if self._can_stratify(y):
+            stratify = y if (y.dtype == 'object' or y.nunique() < 20) else None
+
         return train_test_split(
             X, y,
             test_size=self.test_size,
             random_state=self.random_state,
-            stratify=y if y.dtype == 'object' or y.nunique() < 20 else None
+            stratify=stratify,
         )
 

@@ -25,7 +25,7 @@ N_ITER_RANDOM_SEARCH = 20
 RESAMPLING_STRATEGY = 'auto'  # 'auto', 'smote', 'oversample', 'undersample', 'smote_tomek', None
 
 # Configuration LLM
-LLM_PROVIDER = 'ollama'  # 'ollama', 'openai', 'mistral', 'huggingface', 'template'
+LLM_PROVIDER = 'template'  # 'ollama', 'openai', 'mistral', 'huggingface', 'template'
 OLLAMA_MODEL = 'llama2'  # Modèle Ollama à utiliser (ex: 'llama2', 'mistral', 'codellama', 'phi')
 OLLAMA_BASE_URL = 'http://localhost:11434'  # URL de base pour Ollama
 

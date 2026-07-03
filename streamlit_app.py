@@ -285,20 +285,37 @@ def _load_tabular_data(source: io.BytesIO, filename: str) -> pd.DataFrame:
     else:
         raise ValueError(f"Format de fichier non supporté : {ext}")
 
+
+def _normalize_dataframe_for_streamlit(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None:
+        return df
+    safe_df = df.copy()
+    for col in safe_df.select_dtypes(include=['object']).columns:
+        try:
+            safe_df[col] = safe_df[col].astype(str)
+        except Exception:
+            safe_df[col] = safe_df[col].apply(lambda x: '' if x is None else str(x))
+    return safe_df
+
+
 def display_chat():
     for msg in st.session_state.messages:
         with st.chat_message(msg["role"], avatar=CHATBOT_ICON if msg["role"] == "assistant" else "👤"):
             content = msg.get("content")
-            if msg.get("content_type", "text") == "text": st.markdown(content, unsafe_allow_html=True)
-            elif msg.get("content_type") == "dataframe": st.dataframe(content, width='stretch')
-            elif msg.get("content_type") == "plot": st.plotly_chart(content, width='stretch')
+            if msg.get("content_type", "text") == "text":
+                st.markdown(content, unsafe_allow_html=True)
+            elif msg.get("content_type") == "dataframe":
+                st.dataframe(_normalize_dataframe_for_streamlit(content), width='stretch')
+            elif msg.get("content_type") == "plot":
+                st.plotly_chart(content, width='stretch')
             elif msg.get("content_type") == "mixed":
                 if "text" in content: st.markdown(content["text"], unsafe_allow_html=True)
                 if "markdown" in content and content.get("markdown"):
                     st.markdown(content["markdown"])
                 if "dataframes" in content:
                     for df in content.get("dataframes", []):
-                         if df is not None: st.dataframe(df, width='stretch')
+                        if df is not None:
+                            st.dataframe(_normalize_dataframe_for_streamlit(df), width='stretch')
                 if "plots" in content:
                     for plot in content.get("plots", []):
                         if plot: st.plotly_chart(plot, width='stretch')
@@ -933,9 +950,27 @@ def perform_automl():
                 ),
             )
 
+            if not search_results:
+                status.update(label="❌ Aucun modèle trouvé", state="error")
+                add_message(
+                    "assistant",
+                    "❌ <b>Aucun modèle n'a pu être entraîné pendant la recherche AutoML. Vérifiez que vos données contiennent au moins une colonne explicative valide et plusieurs classes pour la classification.",
+                )
+                return
+
             status.write("🏆 Sélection du meilleur modèle...")
             selector = ModelSelector(task_type=task_type, metric=metric)
-            selection_result = selector.select_best_model(search_results)
+            try:
+                selection_result = selector.select_best_model(search_results)
+            except Exception as e:
+                status.update(label="❌ Erreur de sélection du modèle", state="error")
+                add_message(
+                    "assistant",
+                    f"❌ <b>Erreur de sélection du modèle :</b> {e}."
+                    + " Vérifiez les données et réessayez avec un dataset plus équilibré ou plus volumineux.",
+                )
+                return
+
             st.session_state.selection_result = selection_result
             add_message(
                 "assistant",
@@ -1589,7 +1624,15 @@ def main():
                         add_message("assistant", f"✅ Dataset `{uploaded_file.name}` chargé. Choisissez une cible.")
                         st.rerun()
                     except Exception as e:
+                        import traceback, os
+                        tb = traceback.format_exc()
+                        os.makedirs('logs', exist_ok=True)
+                        with open('logs/streamlit_errors.log', 'a', encoding='utf-8') as fh:
+                            fh.write('\n==== Dataset load error (sidebar upload) ===\n')
+                            fh.write(tb)
                         st.error(f"Erreur de lecture: {e}")
+                        with st.expander("Afficher la trace d'erreur complète"):
+                            st.code(tb)
         
         if dataset_loaded:
             st.success(f"Dataset: `{st.session_state.current_file_name}`")

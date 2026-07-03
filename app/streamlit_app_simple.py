@@ -67,6 +67,18 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
+
+def _normalize_dataframe_for_streamlit(df: pd.DataFrame) -> pd.DataFrame:
+    if df is None:
+        return df
+    safe_df = df.copy()
+    for col in safe_df.select_dtypes(include=['object']).columns:
+        try:
+            safe_df[col] = safe_df[col].astype(str)
+        except Exception:
+            safe_df[col] = safe_df[col].apply(lambda x: '' if x is None else str(x))
+    return safe_df
+
 # CSS simple et fonctionnel
 st.markdown("""
 <style>
@@ -128,8 +140,7 @@ if st.session_state.llm_explainer is None:
         )
     else:
         st.session_state.llm_explainer = LLMExplainer(
-            llm_provider=cfg.LLM_PROVIDER,
-            api_key=getattr(cfg, 'LLM_API_KEY', None)
+            llm_provider=cfg.LLM_PROVIDER
         )
 
 
@@ -381,22 +392,22 @@ def display_chat():
                 if "text" in message:
                     st.markdown(message["text"], unsafe_allow_html=True)
             elif content_type == "dataframe":
-                st.dataframe(message["content"], use_container_width=True, key=f"df_{idx}")
+                st.dataframe(_normalize_dataframe_for_streamlit(message["content"]), width='stretch', key=f"df_{idx}")
                 if "text" in message:
                     st.markdown(_render_bubble(role, message["text"]), unsafe_allow_html=True)
             elif content_type == "plot":
-                st.plotly_chart(message["content"], use_container_width=True, key=f"plot_{idx}")
+                st.plotly_chart(message["content"], width='stretch', key=f"plot_{idx}")
                 if "text" in message:
                     st.markdown(_render_bubble(role, message["text"]), unsafe_allow_html=True)
             elif content_type == "mixed":
                 if "plots" in message:
                     for plot_idx, plot in enumerate(message["plots"]):
                         if plot is not None:
-                            st.plotly_chart(plot, use_container_width=True, key=f"plot_{idx}_{plot_idx}")
+                            st.plotly_chart(plot, width='stretch', key=f"plot_{idx}_{plot_idx}")
                 if "dataframes" in message:
                     for df_idx, df in enumerate(message["dataframes"]):
                         if df is not None:
-                            st.dataframe(df, use_container_width=True, key=f"df_{idx}_{df_idx}")
+                            st.dataframe(_normalize_dataframe_for_streamlit(df), width='stretch', key=f"df_{idx}_{df_idx}")
                 if "text" in message:
                     st.markdown(_render_bubble(role, message["text"]), unsafe_allow_html=True)
             else:
@@ -456,11 +467,11 @@ def main():
             st.divider()
             c1, c2 = st.columns(2)
             with c1:
-                if st.button("🧹 Vider chat", use_container_width=True):
+                if st.button("🧹 Vider chat", width='stretch'):
                     st.session_state.messages = []
                     st.rerun()
             with c2:
-                if st.button("🔄 Reset", use_container_width=True):
+                if st.button("🔄 Reset", width='stretch'):
                     for key in list(st.session_state.keys()):
                         del st.session_state[key]
                     st.rerun()
@@ -468,7 +479,7 @@ def main():
             dataset = st.session_state.get('dataset')
             target_column = st.session_state.get('target_column')
             if dataset is not None and (not hasattr(dataset, "empty") or not dataset.empty) and target_column:
-                if st.button("🚀 Lancer AutoML", use_container_width=True, type="primary"):
+                if st.button("🚀 Lancer AutoML", width='stretch', type="primary"):
                     with st.spinner("⏳ Pipeline AutoML en cours..."):
                         run_automl()
                         st.rerun()
@@ -503,12 +514,12 @@ def main():
                 if local_files:
                     options = [str(p.relative_to(datasets_dir)) for p in local_files]
                     selected = st.selectbox("Fichier", options)
-                    if st.button("✅ Charger", type="primary", use_container_width=True):
+                    if st.button("✅ Charger", type="primary", width='stretch'):
                         df = _load_tabular_from_path(datasets_dir / selected)
                         st.session_state.dataset = df
                         st.session_state.current_file_name = str(selected)
                         st.success(f"✅ Dataset chargé : {selected}")
-                        st.dataframe(df.head(), use_container_width=True)
+                        st.dataframe(_normalize_dataframe_for_streamlit(df.head()), width='stretch')
                 else:
                     st.warning("⚠️ Aucun dataset trouvé dans datasets/")
             else:
@@ -546,7 +557,7 @@ def main():
                         st.session_state.dataset = df
                         st.session_state.current_file_name = uploaded_file.name
                         st.success(f"✅ Dataset chargé : {uploaded_file.name}")
-                        st.dataframe(df.head(), use_container_width=True)
+                        st.dataframe(_normalize_dataframe_for_streamlit(df.head()), width='stretch')
 
         elif action == "Analyser Données":
             st.title("🔍 Analyse des Données")
@@ -554,7 +565,7 @@ def main():
                 st.warning("⚠️ Chargez d'abord un dataset")
             else:
                 df = st.session_state.dataset
-                st.dataframe(df.head(), use_container_width=True)
+                st.dataframe(_normalize_dataframe_for_streamlit(df.head()), width='stretch')
 
         elif action == "Lancer AutoML":
             st.title("🚀 Pipeline AutoML")
@@ -619,12 +630,12 @@ def main():
                 if st.session_state.get('dataset') is not None:
                     st.success(f"Chargé : {st.session_state.current_file_name}")
                     st.caption(f"{st.session_state.dataset.shape[0]} lignes × {st.session_state.dataset.shape[1]} colonnes")
-                    if st.button("🔁 Changer de dataset", use_container_width=True):
+                    if st.button("🔁 Changer de dataset", width='stretch'):
                         st.session_state.main_action = "Charger Dataset"
                         st.rerun()
                 else:
                     st.warning("Aucun dataset")
-                    if st.button("➕ Charger maintenant", type="primary", use_container_width=True):
+                    if st.button("➕ Charger maintenant", type="primary", width='stretch'):
                         st.session_state.main_action = "Charger Dataset"
                         st.rerun()
 
@@ -634,7 +645,7 @@ def main():
                 else:
                     if st.session_state.get('target_column'):
                         st.success(f"Cible : {st.session_state.target_column}")
-                        if st.button("✏️ Modifier la cible", use_container_width=True):
+                        if st.button("✏️ Modifier la cible", width='stretch'):
                             st.session_state.target_column = None
                             st.rerun()
                     else:
@@ -658,7 +669,7 @@ def main():
                 if not ready:
                     st.info("Dataset + cible requis")
                 else:
-                    if st.button("🚀 Lancer AutoML", use_container_width=True, type="primary"):
+                    if st.button("🚀 Lancer AutoML", width='stretch', type="primary"):
                         with st.spinner("⏳ Pipeline AutoML en cours..."):
                             try:
                                 run_automl()
@@ -668,11 +679,11 @@ def main():
                                 st.error(f"❌ Erreur : {str(e)}")
 
             with st.expander("🧹 Actions", expanded=False):
-                if st.button("🧹 Vider chat", use_container_width=True):
+                if st.button("🧹 Vider chat", width='stretch'):
                     st.session_state.messages = []
                     st.rerun()
 
-                if st.button("🔄 Reset complet", use_container_width=True):
+                if st.button("🔄 Reset complet", width='stretch'):
                     for key in list(st.session_state.keys()):
                         del st.session_state[key]
                     st.rerun()
@@ -719,15 +730,23 @@ def main():
                     else:
                         options = [str(p.relative_to(datasets_dir)) for p in local_files]
                         selected = st.selectbox("Choisir un fichier", options)
-                        if st.button("✅ Charger", type="primary", use_container_width=True):
+                        if st.button("✅ Charger", type="primary", width='stretch'):
                             try:
                                 df = _load_tabular_from_path(datasets_dir / selected)
                                 st.session_state.dataset = df
                                 st.session_state.current_file_name = str(selected)
                                 st.success(f"✅ Dataset chargé : {selected}")
-                                st.dataframe(df.head(), use_container_width=True)
+                                st.dataframe(_normalize_dataframe_for_streamlit(df.head()), width='stretch')
                             except Exception as e:
+                                import traceback, os
+                                tb = traceback.format_exc()
+                                os.makedirs('logs', exist_ok=True)
+                                with open('logs/streamlit_errors.log', 'a', encoding='utf-8') as fh:
+                                    fh.write('\n==== Dataset load error (local) ===\n')
+                                    fh.write(tb)
                                 st.error(f"❌ Erreur lors du chargement : {str(e)}")
+                                with st.expander("Afficher la trace d'erreur complète"):
+                                    st.code(tb)
                 else:
                     uploaded_file = st.file_uploader(
                         "Sélectionnez votre fichier",
@@ -770,9 +789,17 @@ def main():
                             st.session_state.dataset = df
                             st.session_state.current_file_name = uploaded_file.name
                             st.success(f"✅ Dataset chargé : {uploaded_file.name}")
-                            st.dataframe(df.head(), use_container_width=True)
+                            st.dataframe(_normalize_dataframe_for_streamlit(df.head()), width='stretch')
                         except Exception as e:
+                            import traceback, os
+                            tb = traceback.format_exc()
+                            os.makedirs('logs', exist_ok=True)
+                            with open('logs/streamlit_errors.log', 'a', encoding='utf-8') as fh:
+                                fh.write('\n==== Dataset load error (upload) ===\n')
+                                fh.write(tb)
                             st.error(f"❌ Erreur lors du chargement : {str(e)}")
+                            with st.expander("Afficher la trace d'erreur complète"):
+                                st.code(tb)
 
             elif action == "Analyser Données":
                 st.title("🔍 Analyse des Données")
@@ -781,7 +808,7 @@ def main():
                 else:
                     df = st.session_state.dataset
                     st.subheader("📊 Aperçu")
-                    st.dataframe(df.head(20), use_container_width=True)
+                    st.dataframe(_normalize_dataframe_for_streamlit(df.head(20)), width='stretch')
 
             elif action == "Lancer AutoML":
                 st.title("🚀 Pipeline AutoML")
@@ -851,7 +878,7 @@ def main():
     # Sidebar minimale
     with st.sidebar:
         st.title("⚙️ Données")
-        if st.button("🔄 Reset", use_container_width=True):
+        if st.button("🔄 Reset", width='stretch'):
             for key in list(st.session_state.keys()):
                 del st.session_state[key]
             st.rerun()
@@ -909,7 +936,7 @@ def main():
         st.markdown("### Chats")
         search = st.text_input("Rechercher", value="", key="conv_search")
 
-        if st.button("➕ Nouvelle discussion", use_container_width=True):
+        if st.button("➕ Nouvelle discussion", width='stretch'):
             new_id = f"conv_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             conversations = st.session_state.get('conversations', {})
             conversations[new_id] = {"name": f"Discussion {len(conversations)+1}", "messages": []}
@@ -928,7 +955,7 @@ def main():
         for cid, name in items:
             is_active = cid == st.session_state.get('current_conversation_id')
             label = f"➡️ {name}" if is_active else name
-            if st.button(label, use_container_width=True, key=f"conv_btn_{cid}"):
+            if st.button(label, width='stretch', key=f"conv_btn_{cid}"):
                 st.session_state.current_conversation_id = cid
                 st.session_state.messages = conversations[cid].get('messages', [])
                 st.rerun()
@@ -938,7 +965,7 @@ def main():
         st.caption("Données & actions")
         st.divider()
 
-        if st.button("🧹 Vider l'historique", use_container_width=True):
+        if st.button("🧹 Vider l'historique", width='stretch'):
             conv_id = st.session_state.get('current_conversation_id', 'conv_default')
             conversations = st.session_state.get('conversations', {})
             if conv_id in conversations:
@@ -953,20 +980,20 @@ def main():
 
         b1, b2 = st.columns(2)
         with b1:
-            if st.button("📁 Charger", use_container_width=True):
+            if st.button("📁 Charger", width='stretch'):
                 st.session_state.flow_step = "charger"
                 st.rerun()
         with b2:
-            if st.button("🎯 Cible", use_container_width=True):
+            if st.button("🎯 Cible", width='stretch'):
                 st.session_state.flow_step = "cible"
                 st.rerun()
         b3, b4 = st.columns(2)
         with b3:
-            if st.button("🚀 AutoML", use_container_width=True):
+            if st.button("🚀 AutoML", width='stretch'):
                 st.session_state.flow_step = "automl"
                 st.rerun()
         with b4:
-            if st.button("📈 Résultats", use_container_width=True):
+            if st.button("📈 Résultats", width='stretch'):
                 st.session_state.flow_step = "resultats"
                 st.rerun()
 
@@ -978,7 +1005,7 @@ def main():
             st.info(f"🎯 Cible : {st.session_state.get('target_column')}")
 
         if step == "automl" and st.session_state.get('dataset') is not None and st.session_state.get('target_column') is not None:
-            if st.button("▶️ Lancer AutoML maintenant", type="primary", use_container_width=True):
+            if st.button("▶️ Lancer AutoML maintenant", type="primary", width='stretch'):
                 with st.spinner("⏳ Pipeline AutoML en cours..."):
                     try:
                         run_automl()
@@ -1011,7 +1038,7 @@ def main():
                 else:
                     options = [str(p.relative_to(datasets_dir)) for p in local_files]
                     selected = st.selectbox("Fichier", options, key="local_file_info")
-                    if st.button("✅ Charger", type="primary", use_container_width=True, key="load_local_info"):
+                    if st.button("✅ Charger", type="primary", width='stretch', key="load_local_info"):
                         try:
                             df = _load_tabular_from_path(datasets_dir / selected)
                             st.session_state.dataset = df
@@ -1122,20 +1149,20 @@ def main():
                 comparison_df = selection_result.get('comparison_summary') if isinstance(selection_result, dict) else None
                 if comparison_df is not None:
                     st.markdown("**📌 Comparaison des modèles**")
-                    st.dataframe(comparison_df, use_container_width=True)
+                    st.dataframe(_normalize_dataframe_for_streamlit(comparison_df), width='stretch')
                     insight = _commentaire_comparaison_modeles(comparison_df)
                     if insight:
                         st.caption(insight)
                     try:
                         score_col = 'Best Score' if 'Best Score' in comparison_df.columns else comparison_df.columns[1]
-                        st.plotly_chart(plot_model_comparison(comparison_df, score_col), use_container_width=True)
+                        st.plotly_chart(plot_model_comparison(comparison_df, score_col), width='stretch')
                     except Exception:
                         pass
 
                 metrics_df = create_metrics_table(evaluation, task_type)
                 if metrics_df is not None:
                     st.markdown("**📊 Métriques**")
-                    st.dataframe(metrics_df, use_container_width=True)
+                    st.dataframe(_normalize_dataframe_for_streamlit(metrics_df), width='stretch')
                     metrics_insight = _commentaire_train_test(evaluation, task_type)
                     if metrics_insight:
                         st.caption(metrics_insight)
@@ -1143,14 +1170,14 @@ def main():
                 train_test_plot = plot_train_test_comparison(evaluation, task_type)
                 if train_test_plot:
                     st.markdown("**📉 Entraînement vs Test**")
-                    st.plotly_chart(train_test_plot, use_container_width=True)
+                    st.plotly_chart(train_test_plot, width='stretch')
 
                 if task_type == 'classification':
                     if evaluation.get('confusion_matrix'):
                         st.markdown("**🔍 Matrice de confusion**")
                         cm_plot = plot_confusion_matrix(evaluation['confusion_matrix'])
                         if cm_plot:
-                            st.plotly_chart(cm_plot, use_container_width=True)
+                            st.plotly_chart(cm_plot, width='stretch')
                         cm_insight = _commentaire_confusion_matrix(evaluation.get('confusion_matrix'))
                         if cm_insight:
                             st.caption(cm_insight)
@@ -1159,7 +1186,7 @@ def main():
                         st.markdown("**🧾 Rapport de classification**")
                         try:
                             report_df = pd.DataFrame(evaluation['classification_report']).T
-                            st.dataframe(report_df, use_container_width=True)
+                            st.dataframe(_normalize_dataframe_for_streamlit(report_df), width='stretch')
                             rep_insight = _commentaire_classification_report(evaluation['classification_report'])
                             if rep_insight:
                                 st.caption(rep_insight)
@@ -1177,7 +1204,7 @@ def main():
                                 st.markdown("**🧠 Importance des variables**")
                                 importance_plot = plot_feature_importance(feature_importance)
                                 if importance_plot:
-                                    st.plotly_chart(importance_plot, use_container_width=True)
+                                    st.plotly_chart(importance_plot, width='stretch')
                                 imp_insight = _commentaire_importance_variables(feature_importance)
                                 if imp_insight:
                                     st.caption(imp_insight)
@@ -1189,7 +1216,7 @@ def main():
                     st.markdown("**🗂️ Rappel dataset**")
                     st.caption(f"{df.shape[0]:,} lignes × {df.shape[1]} colonnes — cible : `{target_col}`")
                     try:
-                        st.plotly_chart(plot_target_distribution(df[target_col], task_type), use_container_width=True)
+                        st.plotly_chart(plot_target_distribution(df[target_col], task_type), width='stretch')
                         tgt_insight = _commentaire_distribution_cible(df[target_col], task_type)
                         if tgt_insight:
                             st.caption(tgt_insight)
@@ -1199,7 +1226,7 @@ def main():
                         if analysis is not None:
                             missing_plot = plot_missing_values(analysis)
                             if missing_plot:
-                                st.plotly_chart(missing_plot, use_container_width=True)
+                                st.plotly_chart(missing_plot, width='stretch')
                                 miss_insight = _commentaire_valeurs_manquantes(df)
                                 if miss_insight:
                                     st.caption(miss_insight)
