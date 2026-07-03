@@ -24,9 +24,8 @@ class ModelZoo:
             'LogisticRegression': {
                 'model': LogisticRegression,
                 'params': {
-                    'C': [0.1, 1, 10, 100],
-                    'penalty': ['l2', 'l1'],
-                    'solver': ['liblinear', 'saga'],
+                    'C': [0.1, 1, 10],
+                    'solver': ['liblinear'],
                     'max_iter': [1000],
                     'random_state': [42]
                 }
@@ -34,10 +33,8 @@ class ModelZoo:
             'RandomForestClassifier': {
                 'model': RandomForestClassifier,
                 'params': {
-                    'n_estimators': [50, 100, 200],
-                    'max_depth': [5, 10, 20, None],
-                    'min_samples_split': [2, 5, 10],
-                    'min_samples_leaf': [1, 2, 4],
+                    'n_estimators': [50, 100],
+                    'max_depth': [5, 10],
                     'random_state': [42]
                 }
             },
@@ -45,9 +42,8 @@ class ModelZoo:
                 'model': GradientBoostingClassifier,
                 'params': {
                     'n_estimators': [50, 100],
-                    'learning_rate': [0.01, 0.1, 0.2],
-                    'max_depth': [3, 5, 7],
-                    'min_samples_split': [2, 5],
+                    'learning_rate': [0.05, 0.1],
+                    'max_depth': [3, 5],
                     'random_state': [42]
                 }
             },
@@ -55,8 +51,7 @@ class ModelZoo:
                 'model': SVC,
                 'params': {
                     'C': [0.1, 1, 10],
-                    'kernel': ['rbf', 'linear'],
-                    'gamma': ['scale', 'auto'],
+                    'kernel': ['rbf'],
                     'probability': [True],
                     'random_state': [42]
                 }
@@ -64,9 +59,8 @@ class ModelZoo:
             'KNeighborsClassifier': {
                 'model': KNeighborsClassifier,
                 'params': {
-                    'n_neighbors': [3, 5, 7, 9],
+                    'n_neighbors': [3, 5, 9],
                     'weights': ['uniform', 'distance'],
-                    'metric': ['euclidean', 'manhattan']
                 }
             }
         }
@@ -121,14 +115,14 @@ class ModelZoo:
             'Ridge': {
                 'model': Ridge,
                 'params': {
-                    'alpha': [0.1, 1, 10, 100],
+                    'alpha': [0.1, 1, 10],
                     'random_state': [42]
                 }
             },
             'Lasso': {
                 'model': Lasso,
                 'params': {
-                    'alpha': [0.1, 1, 10, 100],
+                    'alpha': [0.1, 1, 10],
                     'max_iter': [1000],
                     'random_state': [42]
                 }
@@ -136,10 +130,8 @@ class ModelZoo:
             'RandomForestRegressor': {
                 'model': RandomForestRegressor,
                 'params': {
-                    'n_estimators': [50, 100, 200],
-                    'max_depth': [5, 10, 20, None],
-                    'min_samples_split': [2, 5, 10],
-                    'min_samples_leaf': [1, 2, 4],
+                    'n_estimators': [50, 100],
+                    'max_depth': [5, 10],
                     'random_state': [42]
                 }
             },
@@ -147,18 +139,16 @@ class ModelZoo:
                 'model': GradientBoostingRegressor,
                 'params': {
                     'n_estimators': [50, 100],
-                    'learning_rate': [0.01, 0.1, 0.2],
-                    'max_depth': [3, 5, 7],
-                    'min_samples_split': [2, 5],
+                    'learning_rate': [0.05, 0.1],
+                    'max_depth': [3, 5],
                     'random_state': [42]
                 }
             },
             'KNeighborsRegressor': {
                 'model': KNeighborsRegressor,
                 'params': {
-                    'n_neighbors': [3, 5, 7, 9],
+                    'n_neighbors': [3, 5, 9],
                     'weights': ['uniform', 'distance'],
-                    'metric': ['euclidean', 'manhattan']
                 }
             }
         }

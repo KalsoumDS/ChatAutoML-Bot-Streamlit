@@ -86,19 +86,19 @@ class ModelSearcher:
                     search = GridSearchCV(
                         base_model,
                         param_grid,
-                        cv=self.cv,
+                        cv=min(self.cv, 3),  # max 3 folds sur Streamlit Cloud
                         scoring=scoring,
-                        n_jobs=-1,
+                        n_jobs=1,  # pas de parallélisme sur Streamlit Cloud
                         verbose=0
                     )
                 elif self.search_method == 'random' and len(param_grid) > 0:
                     search = RandomizedSearchCV(
                         base_model,
                         param_grid,
-                        cv=self.cv,
+                        cv=min(self.cv, 3),
                         scoring=scoring,
-                        n_iter=self.n_iter,
-                        n_jobs=-1,
+                        n_iter=min(self.n_iter, 10),  # max 10 itérations
+                        n_jobs=1,
                         verbose=0,
                         random_state=42
                     )
