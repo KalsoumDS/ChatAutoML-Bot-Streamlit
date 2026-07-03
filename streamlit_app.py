@@ -290,18 +290,18 @@ def display_chat():
         with st.chat_message(msg["role"], avatar=CHATBOT_ICON if msg["role"] == "assistant" else "👤"):
             content = msg.get("content")
             if msg.get("content_type", "text") == "text": st.markdown(content, unsafe_allow_html=True)
-            elif msg.get("content_type") == "dataframe": st.dataframe(content, use_container_width=True)
-            elif msg.get("content_type") == "plot": st.plotly_chart(content, use_container_width=True)
+            elif msg.get("content_type") == "dataframe": st.dataframe(content, width='stretch')
+            elif msg.get("content_type") == "plot": st.plotly_chart(content, width='stretch')
             elif msg.get("content_type") == "mixed":
                 if "text" in content: st.markdown(content["text"], unsafe_allow_html=True)
                 if "markdown" in content and content.get("markdown"):
                     st.markdown(content["markdown"])
                 if "dataframes" in content:
                     for df in content.get("dataframes", []):
-                         if df is not None: st.dataframe(df, use_container_width=True)
+                         if df is not None: st.dataframe(df, width='stretch')
                 if "plots" in content:
                     for plot in content.get("plots", []):
-                        if plot: st.plotly_chart(plot, use_container_width=True)
+                        if plot: st.plotly_chart(plot, width='stretch')
 
 # --- Fonctions du Pipeline ---
 
@@ -347,13 +347,13 @@ def perform_analysis():
     summary_df = pd.DataFrame(
         {
             'Valeur': [
-                f"({df.shape[0]}, {df.shape[1]})" if hasattr(df, 'shape') else None,
-                missing_total,
-                f"{missing_pct_total:.2f}%" if missing_pct_total is not None else None,
-                dup_count,
-                len(numeric_cols),
-                len(cat_cols),
-                len(bool_cols),
+                f"({df.shape[0]}, {df.shape[1]})" if hasattr(df, 'shape') else "N/A",
+                str(missing_total) if missing_total is not None else "N/A",
+                f"{missing_pct_total:.2f}%" if missing_pct_total is not None else "N/A",
+                str(dup_count) if dup_count is not None else "N/A",
+                str(len(numeric_cols)),
+                str(len(cat_cols)),
+                str(len(bool_cols)),
             ]
         },
         index=[
@@ -688,10 +688,10 @@ def perform_preprocessing():
     preprocess_summary_df = pd.DataFrame(
         {
             'Valeur': [
-                int(X.shape[1]),
-                int(X_transformed.shape[1]),
-                int(X_train.shape[0]),
-                int(X_test.shape[0]),
+                str(int(X.shape[1])),
+                str(int(X_transformed.shape[1])),
+                str(int(X_train.shape[0])),
+                str(int(X_test.shape[0])),
             ]
         },
         index=[
@@ -1613,7 +1613,7 @@ def main():
                     st.rerun()
                 
                 if st.session_state.get('target_column') and not analysis_done:
-                    if st.button("🔍 Analyser le Dataset", use_container_width=True, type="primary"):
+                    if st.button("🔍 Analyser le Dataset", width='stretch', type="primary"):
                         perform_analysis()
                         st.rerun()
             if analysis_done:
@@ -1622,7 +1622,7 @@ def main():
         if analysis_done:
             with st.expander("3. Prétraitement", expanded=analysis_done and not preprocessing_done):
                 if not preprocessing_done:
-                    if st.button("🔧 Lancer le Prétraitement", use_container_width=True, type="primary"):
+                    if st.button("🔧 Lancer le Prétraitement", width='stretch', type="primary"):
                         perform_preprocessing()
                         st.rerun()
             if preprocessing_done:
@@ -1631,14 +1631,14 @@ def main():
         if preprocessing_done:
             with st.expander("4. Lancer AutoML", expanded=preprocessing_done and not automl_done):
                 if not automl_done:
-                    if st.button("🚀 Lancer l'AutoML", use_container_width=True, type="primary"):
+                    if st.button("🚀 Lancer l'AutoML", width='stretch', type="primary"):
                         perform_automl()
                         st.rerun()
             if automl_done:
                 st.success("AutoML terminé.")
         
         st.divider()
-        if st.button("🔄 Recommencer", use_container_width=True):
+        if st.button("🔄 Recommencer", width='stretch'):
             initialize_session()
             st.rerun()
 
