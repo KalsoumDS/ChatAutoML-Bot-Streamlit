@@ -59,6 +59,81 @@ CHATBOT_ICON = getattr(cfg, 'CHATBOT_ICON', '🤖')
 CHATBOT_DESCRIPTION = getattr(cfg, 'CHATBOT_DESCRIPTION', 'Votre assistant AutoML pour données tabulaires.')
 
 st.set_page_config(page_title=CHATBOT_NAME, page_icon=CHATBOT_ICON, layout="wide")
+st.markdown("""
+<style>
+[data-testid="stAppViewContainer"] {
+    background: #f4f7fb;
+    color: #18243a;
+}
+h1 {
+    color: #172b4d;
+    letter-spacing: -.035em;
+}
+[data-testid="stSidebar"] {
+    background: #ffffff;
+    border-right: 1px solid #e1e7f0;
+}
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] h3 {
+    color: #172b4d;
+}
+[data-testid="stSidebar"] [data-testid="stExpander"] {
+    background: #f7f9fc;
+    border: 1px solid #e1e7f0;
+    border-radius: 10px;
+}
+[data-testid="stSidebar"] [data-testid="stAlert"] {
+    background: #eef4ff;
+    border: 1px solid #d7e4ff;
+    border-left: 3px solid #5278d4;
+    border-radius: 8px;
+}
+[data-testid="stChatMessage"] {
+    background: #ffffff;
+    border: 1px solid #e4eaf2;
+    border-radius: 14px;
+    box-shadow: 0 5px 18px rgba(23, 43, 77, .04);
+}
+[data-testid="stMetric"] {
+    background: #ffffff;
+    border: 1px solid #e1e7f0;
+    border-top: 3px solid #5278d4;
+    border-radius: 10px;
+    padding: .9rem 1rem;
+}
+[data-testid="stMetricLabel"] {
+    color: #62718a;
+    font-size: .75rem;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+}
+.stButton > button[kind="primary"] {
+    background: #3159bd;
+    border-color: #3159bd;
+    color: white;
+    border-radius: 8px;
+}
+.stButton > button[kind="primary"]:hover {
+    background: #26489f;
+    border-color: #26489f;
+}
+[data-testid="stDataFrame"],
+[data-testid="stPlotlyChart"] {
+    border: 1px solid #e1e7f0;
+    border-radius: 10px;
+    overflow: hidden;
+}
+.workspace-label {
+    color: #5278d4;
+    font-size: .75rem;
+    font-weight: 750;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    margin-bottom: -.6rem;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # --- Initialisation de la session ---
 def initialize_session():
@@ -1603,7 +1678,9 @@ def _replay_explanation(entities: Dict[str, Any]):
 
 # --- Interface ---
 def main():
-    st.title(f"{CHATBOT_ICON} {CHATBOT_NAME}")
+    st.markdown('<div class="workspace-label">Atelier de modélisation tabulaire</div>', unsafe_allow_html=True)
+    st.title("TabularAI")
+    st.caption("Un parcours guidé, de votre fichier au modèle interprétable.")
     
     dataset_loaded = st.session_state.dataset is not None
     analysis_done = st.session_state.get('analysis_done', False)
