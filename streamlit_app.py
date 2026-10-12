@@ -95,6 +95,10 @@ h1 {
     border-radius: 14px;
     box-shadow: 0 5px 18px rgba(23, 43, 77, .04);
 }
+[data-testid="stChatMessage"] [data-testid="stMarkdownContainer"],
+[data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] * {
+    color: #18243a !important;
+}
 [data-testid="stMetric"] {
     background: #ffffff;
     border: 1px solid #e1e7f0;
