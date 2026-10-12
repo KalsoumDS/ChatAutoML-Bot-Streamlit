@@ -290,7 +290,12 @@ def _normalize_dataframe_for_streamlit(df: pd.DataFrame) -> pd.DataFrame:
     if df is None:
         return df
     safe_df = df.copy()
-    for col in safe_df.select_dtypes(include=['object', 'str']).columns:
+    string_columns = [
+        col for col in safe_df.columns
+        if pd.api.types.is_object_dtype(safe_df[col].dtype)
+        or pd.api.types.is_string_dtype(safe_df[col].dtype)
+    ]
+    for col in string_columns:
         try:
             safe_df[col] = safe_df[col].astype(str)
         except Exception:
