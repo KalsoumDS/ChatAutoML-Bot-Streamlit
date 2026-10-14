@@ -6,6 +6,7 @@ from typing import Dict, Any, List, Optional
 import pandas as pd
 import numpy as np
 import re
+from app.visualizations import format_model_name_fr
 
 
 def show_welcome_message():
@@ -41,7 +42,7 @@ def show_welcome_message():
         </div>
         <div style="background: rgba(255,255,255,0.15); padding: 1.5rem; border-radius: 8px; backdrop-filter: blur(10px);">
             <div style="font-size: 1.8rem; margin-bottom: 0.5rem;">🔧</div>
-            <strong style="font-size: 1.1rem; display: block; margin-bottom: 0.3rem;">Preprocessing</strong>
+            <strong style="font-size: 1.1rem; display: block; margin-bottom: 0.3rem;">Prétraitement</strong>
             <small style="opacity: 0.9; font-size: 0.9rem;">Nettoyage et préparation</small>
         </div>
         <div style="background: rgba(255,255,255,0.15); padding: 1.5rem; border-radius: 8px; backdrop-filter: blur(10px);">
@@ -251,10 +252,11 @@ def generate_response(intent: Dict[str, Any], context: Dict[str, Any],
                 best_name = (selection_result or {}).get('best_model_name')
             except Exception:
                 best_name = None
+            best_name = format_model_name_fr(best_name) if best_name else None
             return f"""Bonjour ! 👋
 
 **État actuel** : AutoML terminé ✅
-- Dataset : ✅ Chargé
+- Jeu de données : ✅ Chargé
 - Colonne cible : {target_column}
 - Meilleur modèle : {best_name or 'N/A'}
 
@@ -268,7 +270,7 @@ Tu peux me demander :
             return f"""Bonjour ! 👋
 
 **État actuel** :
-- Dataset : ✅ Chargé
+- Jeu de données : ✅ Chargé
 - Colonne cible : {target_column}
 - Type : {task_type}
 
@@ -277,7 +279,7 @@ Tu peux me demander :
         elif dataset is not None:
             return f"""Bonjour ! 👋
 
-**Dataset chargé** ✅
+**Jeu de données chargé** ✅
 
 **Prochaine étape** : Sélectionnez la colonne cible dans le menu latéral."""
         
@@ -296,7 +298,7 @@ Je suis {chatbot_name}.
         automl_done = bool(context.get('automl_done', False))
 
         lines = []
-        lines.append(f"- Dataset : {'✅' if dataset is not None else '❌'}")
+        lines.append(f"- Jeu de données : {'✅' if dataset is not None else '❌'}")
         lines.append(f"- Cible : {'✅ ' + str(target_column) if target_column else '❌'}")
         lines.append(f"- Analyse : {'✅' if analysis_done else '❌'}")
         lines.append(f"- Prétraitement : {'✅' if preprocessing_done else '❌'}")
@@ -309,11 +311,11 @@ Je suis {chatbot_name}.
         elif analysis_done:
             next_step = "Pas encore. Prochaine étape : cliquez sur **🔧 Lancer le Prétraitement**."
         elif dataset is not None and target_column:
-            next_step = "Pas encore. Prochaine étape : cliquez sur **🔍 Analyser le Dataset**."
+            next_step = "Pas encore. Prochaine étape : cliquez sur **🔍 Analyser le jeu de données**."
         elif dataset is not None:
             next_step = "Pas encore. Prochaine étape : choisissez la **colonne cible** dans le menu latéral."
         else:
-            next_step = "Pas encore. Prochaine étape : chargez un dataset via le menu latéral."
+            next_step = "Pas encore. Prochaine étape : chargez un jeu de données via le menu latéral."
 
         return """📌 **État du pipeline**
 
@@ -327,7 +329,7 @@ Je suis {chatbot_name}.
             return f"✅ D'accord. Je reviens sur <b>l'étape {step}/6</b> et je la ré-affiche avec les tableaux/graphes."
         if section:
             labels = {
-                'analysis': 'Analyse du dataset',
+                'analysis': 'Analyse du jeu de données',
                 'preprocessing': 'Prétraitement',
                 'imbalance': 'Déséquilibre',
                 'model_comparison': 'Comparaison des modèles',
@@ -346,7 +348,7 @@ Je suis {chatbot_name}.
             return f"✅ D'accord. Je relance <b>l'étape {step}/6</b>."
         if section:
             labels = {
-                'analysis': 'Analyse du dataset',
+                'analysis': 'Analyse du jeu de données',
                 'preprocessing': 'Prétraitement',
                 'imbalance': 'Déséquilibre',
                 'model_comparison': 'Comparaison des modèles',
@@ -358,10 +360,10 @@ Je suis {chatbot_name}.
         return "✅ D'accord. Dis-moi quelle partie je dois refaire : analyse, prétraitement, AutoML." 
     
     elif intent_type == 'load_data':
-        return """📁 **Charger un dataset**
+        return """📁 **Charger un jeu de données**
 
 1. Utilisez le menu latéral
-2. Section "📁 Charger un Dataset"
+2. Section "📁 Charger un jeu de données"
 3. Sélectionnez votre fichier (CSV, Excel, Parquet, JSON)
 4. Choisissez la colonne cible
 
@@ -369,23 +371,23 @@ Je suis {chatbot_name}.
     
     elif intent_type == 'preprocessing':
         if context.get('dataset') is None:
-            return """🔧 **Preprocessing**
+            return """🔧 **Prétraitement**
 
-Chargez d'abord un dataset, puis lancez AutoML. Le preprocessing sera automatique."""
+Chargez d'abord un jeu de données, puis lancez AutoML. Le prétraitement sera automatique."""
         else:
-            return """🔧 **Preprocessing**
+            return """🔧 **Prétraitement**
 
 Effectué automatiquement lors du lancement d'AutoML :
 - Imputation des valeurs manquantes
 - Encodage des catégorielles
 - Normalisation des numériques
-- Split train/test (80/20)"""
+- Séparation entraînement/test (80/20)"""
     
     elif intent_type == 'run_automl':
         if context.get('dataset') is None:
             return """🚀 **Lancer AutoML**
 
-Chargez d'abord un dataset et sélectionnez la colonne cible."""
+Chargez d'abord un jeu de données et sélectionnez la colonne cible."""
         elif context.get('target_column') is None:
             return """🚀 **Lancer AutoML**
 
@@ -396,7 +398,7 @@ Sélectionnez d'abord la colonne cible dans le menu latéral."""
 Cliquez sur "🚀 Lancer AutoML" dans le menu latéral.
 
 **Pipeline** :
-1. Preprocessing
+1. Prétraitement
 2. Gestion du déséquilibre
 3. Recherche de modèles
 4. Sélection du meilleur
@@ -404,16 +406,16 @@ Cliquez sur "🚀 Lancer AutoML" dans le menu latéral.
     
     elif intent_type == 'reset_pipeline':
         return (
-            "✅ D'accord. Je peux **refaire le pipeline** (analyse → prétraitement → AutoML) sans supprimer le dataset.\n\n"
+            "✅ D'accord. Je peux **refaire le parcours** (analyse → prétraitement → AutoML) sans supprimer le jeu de données.\n\n"
             "Confirme : tu veux\n"
-            "- **A)** garder le dataset et juste refaire le pipeline\n"
-            "- **B)** tout réinitialiser (dataset + chat + résultats)\n\n"
+            "- **A)** garder le jeu de données et refaire le parcours\n"
+            "- **B)** tout réinitialiser (jeu de données + conversation + résultats)\n\n"
             "Réponds simplement `A` ou `B`."
         )
 
     elif intent_type == 'reset_session':
         return (
-            "✅ D'accord. Tu veux que je **réinitialise toute la session** (dataset + cible + résultats + chat) ?\n\n"
+            "✅ D'accord. Tu veux que je **réinitialise toute la session** (jeu de données + cible + résultats + conversation) ?\n\n"
             "Réponds : `oui` pour confirmer, ou `non` si tu veux seulement refaire le pipeline."
         )
 
@@ -428,9 +430,9 @@ Cliquez sur "🚀 Lancer AutoML" dans le menu latéral.
             "Je comprends. Dis-moi exactement ce que tu n'aimes pas et je corrige.\n\n"
             "Pour aller vite, réponds avec **1 chiffre** :\n"
             "1) C'est trop lent\n"
-            "2) Upload / cible ne marche pas\n"
+            "2) Importation / cible ne fonctionne pas\n"
             "3) AutoML / résultats pas clairs\n"
-            "4) UI / thème / design\n"
+            "4) Interface / thème / design\n"
             "5) Chat ne comprend pas mes phrases\n\n"
             "Puis ajoute une phrase (optionnel)."
         )
@@ -440,7 +442,7 @@ Cliquez sur "🚀 Lancer AutoML" dans le menu latéral.
 
 **Commandes** :
 - "Bonjour" - Bienvenue
-- "Charger un dataset" - Instructions
+- "Charger un jeu de données" - Instructions
 - "Lancer AutoML" - Démarrer le pipeline
 - "Aide" - Cette aide
 
@@ -448,10 +450,10 @@ Cliquez sur "🚀 Lancer AutoML" dans le menu latéral.
 - Valeurs manquantes ?
 - Déséquilibre ?
 - Meilleur modèle ?
-- Overfitting ?
-- Features importantes ?
+- Surapprentissage ?
+- Variables importantes ?
 
-**Menu latéral** : Charger dataset, Sélectionner cible, Lancer AutoML"""
+**Menu latéral** : Charger un jeu de données, Sélectionner la cible, Lancer AutoML"""
     
     elif intent_type == 'ask_about_data':
         if context.get('analysis'):
@@ -459,7 +461,7 @@ Cliquez sur "🚀 Lancer AutoML" dans le menu latéral.
         else:
             return """📊 **Questions sur les données**
 
-Chargez d'abord un dataset via le menu latéral."""
+Chargez d'abord un jeu de données via le menu latéral."""
     
     elif intent_type == 'ask_about_models':
         if context.get('selection_result'):
@@ -485,7 +487,6 @@ Lancez d'abord AutoML via le menu latéral."""
 
         dataset = context.get('dataset')
         if dataset is None:
-            return "Je n'ai pas compris. Pour commencer, charge un dataset via le menu latéral, puis choisis la colonne cible."
+            return "Je n'ai pas compris. Pour commencer, charge un jeu de données via le menu latéral, puis choisis la colonne cible."
 
         return "Je n'ai pas compris. Reformule en 1 phrase (ex: 'explique la normalisation', 'refais le prétraitement', 'reviens sur la comparaison')."
-

@@ -31,7 +31,8 @@ from app.visualizations import (
     plot_target_distribution, plot_missing_values,
     create_dataset_head_table, create_missing_values_table,
     create_descriptive_stats_table, create_metrics_table,
-    plot_model_comparison, plot_feature_importance, plot_train_test_comparison
+    plot_model_comparison, plot_feature_importance, plot_train_test_comparison,
+    format_model_name_fr,
 )
 from app.chat_interface import detect_user_intent, generate_response
 
@@ -669,7 +670,7 @@ def perform_analysis():
                 ],
             )
             + _comment_block(
-                "Imputation prévue : numériques→médiane, catégorielles→'Unknown', bool→mode. "
+                "Imputation prévue : numériques → médiane, catégorielles → « inconnue », booléennes → mode. "
                 + ("Top colonnes manquantes (ci-dessus) = celles qui impactent le plus." if "Colonnes les plus touchées" in (miss_comment or "") else "")
             ),
             "dataframes": [missing_df],
@@ -710,7 +711,7 @@ def perform_analysis():
                 major_cnt = int(target_counts_df.loc[target_counts_df['count'].idxmax(), 'count'])
                 tgt_specific_comment = (
                     f"Classe majoritaire = <code>{major_label}</code> : {major_cnt} ({major_pct2:.2f}%). "
-                    + ("Dataset déséquilibré → rééchantillonnage appliqué dans AutoML." if major_pct2 is not None and major_pct2 >= 70 else "Dataset plutôt équilibré.")
+                    + ("Jeu de données déséquilibré → rééchantillonnage appliqué dans AutoML." if major_pct2 is not None and major_pct2 >= 70 else "Jeu de données plutôt équilibré.")
                 )
         except Exception:
             tgt_specific_comment = ""
@@ -798,7 +799,7 @@ def perform_preprocessing():
         index=[
             'X avant (colonnes)',
             'X après (features)',
-            'Train (lignes)',
+            'Entraînement (lignes)',
             'Test (lignes)',
         ],
     )
@@ -1103,7 +1104,7 @@ def perform_automl():
                             if not tmp.empty:
                                 best_model = str(tmp.iloc[0]['Model'])
                                 best_score = _safe_float(tmp.iloc[0]['Best Score'])
-                                model_comment = f"Meilleur = <code>{best_model}</code> (Best Score = {best_score:.4f})."
+                                model_comment = f"Meilleur modèle = <code>{format_model_name_fr(best_model)}</code> (meilleur score = {best_score:.4f})."
                                 if len(tmp) > 1:
                                     second_score = _safe_float(tmp.iloc[1]['Best Score'])
                                     if second_score is not None and best_score is not None:
@@ -1112,12 +1113,20 @@ def perform_automl():
                                     best_std = comparison_df.loc[comparison_df['Model'] == best_model, 'CV Std'].iloc[0]
                                     best_std_f = _safe_float(best_std)
                                     if best_std_f is not None:
-                                        model_comment += f" Stabilité (CV Std) ≈ {best_std_f:.4f}."
+                                        model_comment += f" Stabilité (écart-type de validation croisée) ≈ {best_std_f:.4f}."
                     except Exception:
                         model_comment = ""
 
                     st.session_state.model_comparison_df = comparison_df
                     comp_plot = plot_model_comparison(comparison_df, metric='Best Score')
+                    comparison_display_df = comparison_df.copy()
+                    if "Model" in comparison_display_df:
+                        comparison_display_df["Model"] = comparison_display_df["Model"].map(format_model_name_fr)
+                    comparison_display_df = comparison_display_df.rename(columns={
+                        "Model": "Modèle",
+                        "Best Score": "Meilleur score",
+                        "CV Std": "Écart-type de validation croisée",
+                    })
                     add_message(
                         "assistant",
                         content={
@@ -1125,11 +1134,11 @@ def perform_automl():
                                 "📋 Comparaison des modèles",
                                 [
                                     "Tableau + graphique des scores (validation croisée).",
-                                    "Colonne <b>CV Std</b> = stabilité (plus petit = plus stable)." if 'CV Std' in comparison_df.columns else "",
+                                    "L’écart-type de validation croisée indique la stabilité (plus petit = plus stable)." if 'CV Std' in comparison_df.columns else "",
                                 ],
                             )
-                            + _comment_block(model_comment or "Comparer Best Score + temps + stabilité (si disponible)."),
-                            "dataframes": [comparison_df],
+                            + _comment_block(model_comment or "Comparer les scores, le temps de calcul et la stabilité (si disponibles)."),
+                            "dataframes": [comparison_display_df],
                             "plots": [comp_plot] if comp_plot is not None else [],
                         },
                         content_type="mixed",
@@ -1155,11 +1164,11 @@ def perform_automl():
             try:
                 if evaluation.get('overfitting', {}).get('detected'):
                     gap = evaluation['overfitting'].get('gap')
-                    diag_lines.append(f"⚠️ <b>Overfitting détecté</b> (écart train/test ≈ {gap:.3f}).")
+                    diag_lines.append(f"⚠️ <b>Surapprentissage détecté</b> (écart entraînement/test ≈ {gap:.3f}).")
                 elif evaluation.get('underfitting', {}).get('detected'):
-                    diag_lines.append("⚠️ <b>Underfitting détecté</b> (scores faibles sur train et test).")
+                    diag_lines.append("⚠️ <b>Sous-apprentissage détecté</b> (scores faibles sur les données d’entraînement et de test).")
                 else:
-                    diag_lines.append("✅ <b>Généralisation correcte</b> (écart train/test acceptable).")
+                    diag_lines.append("✅ <b>Généralisation correcte</b> (écart entraînement/test acceptable).")
             except Exception:
                 pass
 
@@ -1167,9 +1176,9 @@ def perform_automl():
                 "assistant",
                 content={
                     "text": (
-                        _step_banner(6, 6, "📊 Évaluation finale", "Train vs test + diagnostic de généralisation")
+                        _step_banner(6, 6, "📊 Évaluation finale", "Entraînement et test + diagnostic de généralisation")
                         + _findings_block(
-                            "📊 Évaluation finale (train vs test)",
+                            "📊 Évaluation finale (entraînement et test)",
                             [
                                 ("<br/>".join(diag_lines) if diag_lines else "Diagnostic de généralisation effectué."),
                             ],
@@ -1178,9 +1187,9 @@ def perform_automl():
                             (lambda: (
                                 (lambda tm, te: (
                                     (lambda k: (
-                                        f"Métrique clé <code>{k}</code> : train={_safe_float(tm.get(k)):.4f} / test={_safe_float(te.get(k)):.4f} (gap={abs(_safe_float(tm.get(k))-_safe_float(te.get(k))):.4f})."
+                                        f"Indicateur principal : entraînement={_safe_float(tm.get(k)):.4f} / test={_safe_float(te.get(k)):.4f} (écart={abs(_safe_float(tm.get(k))-_safe_float(te.get(k))):.4f})."
                                         if k and _safe_float(tm.get(k)) is not None and _safe_float(te.get(k)) is not None
-                                        else "Voir le tableau des métriques (train vs test)."
+                                        else "Voir le tableau des indicateurs (entraînement et test)."
                                     ))(
                                         (metric if metric in (tm or {}) else (
                                             'f1_macro' if task_type == 'classification' and 'f1_macro' in (tm or {}) else (
@@ -1210,7 +1219,7 @@ def perform_automl():
                         try:
                             top_items = sorted(fi.items(), key=lambda kv: kv[1], reverse=True)[:3]
                             if top_items:
-                                fi_top_comment = "Top : " + ", ".join([f"<code>{k}</code> ({_safe_float(v):.3g})" for k, v in top_items])
+                                fi_top_comment = "Variables les plus importantes : " + ", ".join([f"<code>{k}</code> ({_safe_float(v):.3g})" for k, v in top_items])
                         except Exception:
                             fi_top_comment = ""
                         fi_plot = plot_feature_importance(fi, top_n=15)
@@ -1291,9 +1300,9 @@ def _replay_explanation(entities: Dict[str, Any]):
 
     if section == 'analysis':
         if df is None:
-            add_message("assistant", "Charge d'abord un dataset pour que je puisse revenir sur l'analyse.")
+            add_message("assistant", "Charge d'abord un jeu de données pour que je puisse revenir sur l'analyse.")
             return
-        add_message("assistant", "✅ Je reviens sur <b>l'analyse du dataset</b>.")
+        add_message("assistant", "✅ Je reviens sur <b>l'analyse du jeu de données</b>.")
         # Recalcule léger basé sur le dataset actuel
         try:
             n_rows, n_cols = int(df.shape[0]), int(df.shape[1])
@@ -1339,7 +1348,7 @@ def _replay_explanation(entities: Dict[str, Any]):
             "assistant",
             content={
                 "text": _findings_block(
-                    "📌 Résumé dataset",
+                    "📌 Résumé du jeu de données",
                     [shape_result],
                 ) + _comment_block(
                     (
@@ -1389,7 +1398,7 @@ def _replay_explanation(entities: Dict[str, Any]):
                 "text": _findings_block(
                     "🧩 Valeurs manquantes",
                     [miss_comment],
-                ) + _comment_block("Imputation prévue : numériques→médiane, catégorielles→'Unknown'."),
+                ) + _comment_block("Imputation prévue : variables numériques → médiane, variables catégorielles → « inconnue »."),
                 "dataframes": [missing_df] if missing_df is not None else [],
                 "plots": [missing_plot] if missing_plot is not None else [],
             },
@@ -1491,7 +1500,7 @@ def _replay_explanation(entities: Dict[str, Any]):
                 index=[
                     'X avant (colonnes)',
                     'X après (features)',
-                    'Train (lignes)',
+                    'Entraînement (lignes)',
                     'Test (lignes)',
                 ],
             )
@@ -1694,7 +1703,7 @@ def main():
     with st.sidebar:
         st.header("Panneau de Contrôle")
         
-        with st.expander("1. Charger un Dataset", expanded=not dataset_loaded):
+        with st.expander("1. Charger un jeu de données", expanded=not dataset_loaded):
             uploaded_file = st.file_uploader("Importer un fichier", type=['csv', 'xlsx', 'xls', 'parquet', 'json'], label_visibility="collapsed")
             if uploaded_file:
                 # Ne recharger que si le fichier a changé (évite lenteur + boucles de rerun)
@@ -1707,7 +1716,7 @@ def main():
                         st.session_state.current_file_name = uploaded_file.name
                         st.session_state.uploaded_file_sig = file_sig
                         _reset_pipeline_state(keep_messages=True)
-                        add_message("assistant", f"✅ Dataset `{uploaded_file.name}` chargé. Choisissez une cible.")
+                        add_message("assistant", f"✅ Jeu de données `{uploaded_file.name}` chargé. Choisissez une cible.")
                         st.rerun()
                     except Exception as e:
                         import traceback, os
@@ -1721,10 +1730,10 @@ def main():
                             st.code(tb)
         
         if dataset_loaded:
-            st.success(f"Dataset: `{st.session_state.current_file_name}`")
+            st.success(f"Jeu de données : `{st.session_state.current_file_name}`")
 
         if dataset_loaded:
-            with st.expander("2. Analyser les Données", expanded=dataset_loaded and not analysis_done):
+            with st.expander("2. Analyser les données", expanded=dataset_loaded and not analysis_done):
                 df = st.session_state.dataset
                 target_options = ["-- Sélectionner --"] + list(df.columns)
                 current_target_idx = target_options.index(st.session_state.target_column) if st.session_state.get('target_column') in target_options else 0
@@ -1742,7 +1751,7 @@ def main():
                     st.rerun()
                 
                 if st.session_state.get('target_column') and not analysis_done:
-                    if st.button("🔍 Analyser le Dataset", width='stretch', type="primary"):
+                    if st.button("🔍 Analyser le jeu de données", width='stretch', type="primary"):
                         perform_analysis()
                         st.rerun()
             if analysis_done:

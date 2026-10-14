@@ -3,6 +3,7 @@ Module LLM pour générer des explications en langage naturel
 """
 from typing import Dict, Any, Optional
 import json
+from app.visualizations import format_model_name_fr
 
 
 class LLMExplainer:
@@ -119,7 +120,7 @@ class LLMExplainer:
         return ""
     
     def explain_dataset_analysis(self, analysis: Dict[str, Any]) -> str:
-        """Explique l'analyse du dataset"""
+        """Explique l'analyse du jeu de données"""
         # Préparer les données pour le prompt
         data_summary = {
             'rows': analysis['shape']['rows'],
@@ -136,27 +137,27 @@ class LLMExplainer:
         
         # Si Ollama est disponible, l'utiliser pour générer une explication
         if self.use_api and self.llm_provider == 'ollama':
-            prompt = f"""Analyse ce dataset et explique-le de manière claire et professionnelle en français.
+            prompt = f"""Analyse ce jeu de données et explique-le de manière claire et professionnelle en français.
 
-Informations du dataset:
+Informations du jeu de données :
 - Dimensions: {data_summary['rows']} lignes × {data_summary['columns']} colonnes
 - Colonnes: {json.dumps(data_summary['column_info'], indent=2, ensure_ascii=False)}
 """
             if 'target' in data_summary:
                 prompt += f"- Colonne cible: {data_summary['target']['column']} (type: {data_summary['target']['type']}, valeurs uniques: {data_summary['target']['unique_count']})\n"
                 if not data_summary['target'].get('is_balanced'):
-                    prompt += "- ⚠️ Le dataset est déséquilibré\n"
+                    prompt += "- ⚠️ Le jeu de données est déséquilibré\n"
             
             prompt += "\nGénère une explication claire et structurée en markdown."
             
-            system_prompt = "Tu es un expert en Machine Learning et Data Science. Tu expliques les analyses de données de manière claire et professionnelle en français."
+            system_prompt = "Tu es un expert en apprentissage automatique et en science des données. Tu expliques les analyses de manière claire et professionnelle en français."
             
             llm_response = self._call_ollama(prompt, system_prompt)
             if llm_response:
                 return llm_response
         
         # Fallback sur template si LLM non disponible
-        summary = f"""## Analyse du Dataset
+        summary = f"""## Analyse du jeu de données
 
 **Dimensions** : {analysis['shape']['rows']} lignes × {analysis['shape']['columns']} colonnes
 
@@ -175,7 +176,7 @@ Informations du dataset:
             summary += f"- Type détecté : {target['type']}\n"
             summary += f"- Nombre de classes/valeurs uniques : {target['unique_count']}\n"
             if not target['is_balanced']:
-                summary += "⚠️ **Attention** : Le dataset est déséquilibré\n"
+                summary += "⚠️ **Attention** : le jeu de données est déséquilibré\n"
         
         return summary
     
@@ -202,27 +203,36 @@ Confidence : {confidence}
                                evaluation: Dict[str, Any],
                                task_type: str) -> str:
         """Explique la sélection du meilleur modèle"""
-        model_name = selection_result['best_model_name']
+        model_name = format_model_name_fr(selection_result['best_model_name'])
         best_score = selection_result['best_score']
         
         # Si Ollama est disponible, l'utiliser
         if self.use_api and self.llm_provider == 'ollama':
             comparison_data = ""
             if 'comparison_summary' in selection_result:
-                df = selection_result['comparison_summary']
+                df = selection_result['comparison_summary'].copy()
+                if 'Model' in df.columns:
+                    df['Model'] = df['Model'].map(format_model_name_fr)
+                df = df.rename(columns={
+                    'Model': 'Modèle',
+                    'Best Score': 'Meilleur score',
+                    'Accuracy': 'Exactitude',
+                    'F1 Macro': 'Score F1 macro',
+                    'F1 Weighted': 'Score F1 pondéré',
+                })
                 comparison_data = df.to_string(index=False)
             
             overfitting_info = ""
             if evaluation.get('overfitting', {}).get('detected'):
-                overfitting_info = f"Overfitting détecté: train={evaluation['overfitting']['train_score']:.4f}, test={evaluation['overfitting']['test_score']:.4f}, écart={evaluation['overfitting']['gap']:.4f}"
+                overfitting_info = f"Surapprentissage détecté : entraînement={evaluation['overfitting']['train_score']:.4f}, test={evaluation['overfitting']['test_score']:.4f}, écart={evaluation['overfitting']['gap']:.4f}"
             
             underfitting_info = ""
             if evaluation.get('underfitting', {}).get('detected'):
-                underfitting_info = "Underfitting détecté"
+                underfitting_info = "Sous-apprentissage détecté"
             
             test_metrics = evaluation.get('test_metrics', {})
             
-            prompt = f"""Explique les résultats de sélection du meilleur modèle de Machine Learning en français.
+            prompt = f"""Explique les résultats de sélection du meilleur modèle d’apprentissage automatique en français.
 
 Meilleur modèle: {model_name}
 Score principal: {best_score:.4f}
@@ -237,7 +247,7 @@ Métriques de test: {json.dumps(test_metrics, indent=2, ensure_ascii=False)}
 
 Génère une explication claire, structurée en markdown, qui explique pourquoi ce modèle a été choisi, compare avec les autres, et commente les performances."""
             
-            system_prompt = "Tu es un expert en Machine Learning. Tu expliques les résultats de modèles de manière claire et professionnelle en français."
+            system_prompt = "Tu es un expert en apprentissage automatique. Tu expliques les résultats de modèles de manière claire et professionnelle en français."
             
             llm_response = self._call_ollama(prompt, system_prompt)
             if llm_response:
@@ -254,48 +264,57 @@ Génère une explication claire, structurée en markdown, qui explique pourquoi 
         
         # Ajouter le tableau comparatif
         if 'comparison_summary' in selection_result:
-            df = selection_result['comparison_summary']
+            df = selection_result['comparison_summary'].copy()
+            if 'Model' in df.columns:
+                df['Model'] = df['Model'].map(format_model_name_fr)
+            df = df.rename(columns={
+                'Model': 'Modèle',
+                'Best Score': 'Meilleur score',
+                'Accuracy': 'Exactitude',
+                'F1 Macro': 'Score F1 macro',
+                'F1 Weighted': 'Score F1 pondéré',
+            })
             explanation += df.to_string(index=False) + "\n\n"
         
         # Informations sur overfitting/underfitting
         if evaluation.get('overfitting', {}).get('detected'):
-            explanation += "⚠️ **Overfitting détecté** : Le modèle performe bien sur les données d'entraînement mais moins bien sur les données de test.\n"
-            explanation += "   - Score train : {:.4f}\n".format(evaluation['overfitting']['train_score'])
+            explanation += "⚠️ **Surapprentissage détecté** : Le modèle fonctionne bien sur les données d'entraînement mais moins bien sur les données de test.\n"
+            explanation += "   - Score d’entraînement : {:.4f}\n".format(evaluation['overfitting']['train_score'])
             explanation += "   - Score test : {:.4f}\n".format(evaluation['overfitting']['test_score'])
             explanation += "   - Écart : {:.4f}\n\n".format(evaluation['overfitting']['gap'])
         
         if evaluation.get('underfitting', {}).get('detected'):
-            explanation += "⚠️ **Underfitting détecté** : Le modèle ne performe pas bien sur les données d'entraînement et de test.\n"
-            explanation += "   Cela suggère que le modèle est trop simple pour capturer les patterns dans les données.\n\n"
+            explanation += "⚠️ **Sous-apprentissage détecté** : Le modèle fonctionne mal sur les données d'entraînement et de test.\n"
+            explanation += "   Cela suggère que le modèle est trop simple pour représenter les tendances des données.\n\n"
         
         # Métriques détaillées
         test_metrics = evaluation.get('test_metrics', {})
         explanation += "### Performances sur les données de test\n\n"
         
         if task_type == 'classification':
-            explanation += f"- **Accuracy** : {test_metrics.get('accuracy', 0):.4f}\n"
-            explanation += f"- **F1 Macro** : {test_metrics.get('f1_macro', 0):.4f}\n"
-            explanation += f"- **F1 Weighted** : {test_metrics.get('f1_weighted', 0):.4f}\n"
+            explanation += f"- **Exactitude** : {test_metrics.get('accuracy', 0):.4f}\n"
+            explanation += f"- **Score F1 macro** : {test_metrics.get('f1_macro', 0):.4f}\n"
+            explanation += f"- **Score F1 pondéré** : {test_metrics.get('f1_weighted', 0):.4f}\n"
             if 'roc_auc' in test_metrics:
                 explanation += f"- **ROC AUC** : {test_metrics['roc_auc']:.4f}\n"
         else:
             explanation += f"- **R²** : {test_metrics.get('r2', 0):.4f}\n"
-            explanation += f"- **RMSE** : {test_metrics.get('rmse', 0):.4f}\n"
-            explanation += f"- **MAE** : {test_metrics.get('mae', 0):.4f}\n"
+            explanation += f"- **Racine de l’erreur quadratique moyenne** : {test_metrics.get('rmse', 0):.4f}\n"
+            explanation += f"- **Erreur absolue moyenne** : {test_metrics.get('mae', 0):.4f}\n"
         
         return explanation
     
     def explain_feature_importance(self, feature_importance: Dict[str, float], 
                                    top_n: int = 10) -> str:
-        """Explique l'importance des features"""
+        """Explique l'importance des variables"""
         if not feature_importance:
-            return "L'importance des features n'est pas disponible pour ce modèle.\n"
+            return "L'importance des variables n'est pas disponible pour ce modèle.\n"
         
         # Trier par importance
         sorted_features = sorted(feature_importance.items(), key=lambda x: x[1], reverse=True)
         top_features = sorted_features[:top_n]
         
-        explanation = f"### Top {top_n} features les plus importantes\n\n"
+        explanation = f"### Les {top_n} variables les plus importantes\n\n"
         for i, (feature, importance) in enumerate(top_features, 1):
             explanation += f"{i}. **{feature}** : {importance:.4f}\n"
         
@@ -316,13 +335,13 @@ Génère une explication claire, structurée en markdown, qui explique pourquoi 
         
         # Overfitting
         if evaluation.get('overfitting', {}).get('detected'):
-            suggestions += "- **Overfitting** : Essayez d'augmenter la régularisation, réduire la complexité du modèle, "
+            suggestions += "- **Surapprentissage** : essayez d'augmenter la régularisation, de réduire la complexité du modèle, "
             suggestions += "ou collecter plus de données.\n"
         
         # Underfitting
         if evaluation.get('underfitting', {}).get('detected'):
-            suggestions += "- **Underfitting** : Le modèle est peut-être trop simple. Essayez des modèles plus complexes "
-            suggestions += "ou feature engineering.\n"
+            suggestions += "- **Sous-apprentissage** : le modèle est peut-être trop simple. Essayez des modèles plus complexes "
+            suggestions += "ou la création de nouvelles variables.\n"
         
         # Déséquilibre
         if analysis.get('target_info', {}).get('is_balanced') == False:
@@ -330,8 +349,8 @@ Génère une explication claire, structurée en markdown, qui explique pourquoi 
             suggestions += "essayer d'autres stratégies ou utiliser des métriques plus adaptées.\n"
         
         # Feature engineering
-        suggestions += "- **Feature engineering** : Créez de nouvelles features à partir des existantes, "
-        suggestions += "ou supprimez les features peu importantes.\n"
+        suggestions += "- **Création de variables** : concevez de nouvelles variables à partir des variables existantes, "
+        suggestions += "ou supprimez celles qui sont peu importantes.\n"
         
         suggestions += "- **Plus de données** : Collecter plus de données d'entraînement peut améliorer les performances.\n"
         
@@ -352,7 +371,7 @@ Génère une explication claire, structurée en markdown, qui explique pourquoi 
             analysis = context.get('analysis')
             if analysis is not None:
                 try:
-                    context_str += f"- Analyse du dataset: {json.dumps(analysis, indent=2, ensure_ascii=False, default=str)}\n"
+                    context_str += f"- Analyse du jeu de données : {json.dumps(analysis, indent=2, ensure_ascii=False, default=str)}\n"
                 except (TypeError, ValueError):
                     pass
             
@@ -362,7 +381,7 @@ Génère une explication claire, structurée en markdown, qui explique pourquoi 
             selection_result = context.get('selection_result')
             if selection_result is not None:
                 try:
-                    context_str += f"- Meilleur modèle: {selection_result.get('best_model_name', 'N/A')}\n"
+                    context_str += f"- Meilleur modèle : {format_model_name_fr(selection_result.get('best_model_name', 'N/A'))}\n"
                 except (AttributeError, TypeError):
                     pass
             
@@ -379,7 +398,7 @@ Question de l'utilisateur: {question}
 
 Réponds à la question de manière claire, précise et professionnelle en français. Utilise les informations du contexte si disponibles."""
             
-            system_prompt = "Tu es un assistant expert en Machine Learning et Data Science. Tu réponds aux questions de manière claire, précise et professionnelle en français."
+            system_prompt = "Tu es un assistant expert en apprentissage automatique et en science des données. Tu réponds de manière claire, précise et professionnelle en français."
             
             llm_response = self._call_ollama(prompt, system_prompt)
             if llm_response:
@@ -399,8 +418,8 @@ Réponds à la question de manière claire, précise et professionnelle en fran�
             if 'analysis' in context and context['analysis'] is not None and context['analysis'].get('target_info'):
                 target_info = context['analysis']['target_info']
                 if not target_info.get('is_balanced'):
-                    return f"Oui, le dataset est déséquilibré. La classe majoritaire représente plus de 70% des données. Distribution : {target_info.get('distribution', {})}"
-                return "Le dataset semble équilibré."
+                    return f"Oui, le jeu de données est déséquilibré. La classe majoritaire représente plus de 70 % des données. Répartition : {target_info.get('distribution', {})}"
+                    return "Le jeu de données semble équilibré."
             return "Je n'ai pas encore analysé le déséquilibre des classes."
         
         # Questions sur les valeurs manquantes
@@ -410,7 +429,7 @@ Réponds à la question de manière claire, précise et professionnelle en fran�
                 cols_with_missing = {k: v for k, v in missing.items() if v['count'] > 0}
                 if cols_with_missing:
                     return f"Colonnes avec valeurs manquantes : {cols_with_missing}"
-                return "Aucune valeur manquante détectée dans le dataset."
+                return "Aucune valeur manquante détectée dans le jeu de données."
             return "Je n'ai pas encore analysé les valeurs manquantes."
         
         # Questions sur les modèles
@@ -424,22 +443,21 @@ Réponds à la question de manière claire, précise et professionnelle en fran�
             return "Les modèles n'ont pas encore été entraînés."
         
         # Questions sur overfitting/underfitting
-        if 'overfitting' in question_lower or 'surajustement' in question_lower:
+        if 'overfitting' in question_lower or 'surajustement' in question_lower or 'surapprentissage' in question_lower:
             if 'evaluation' in context and context['evaluation'] is not None:
                 overfitting = context['evaluation'].get('overfitting', {})
                 if overfitting and overfitting.get('detected'):
-                    return f"Oui, de l'overfitting a été détecté. Écart entre train et test : {overfitting.get('gap', 0):.4f}"
-                return "Aucun overfitting significatif détecté."
-            return "Je n'ai pas encore évalué l'overfitting."
+                    return f"Oui, un surapprentissage a été détecté. Écart entre l'entraînement et le test : {overfitting.get('gap', 0):.4f}"
+                return "Aucun surapprentissage significatif détecté."
+            return "Je n'ai pas encore évalué le surapprentissage."
         
-        if 'underfitting' in question_lower or 'sous-ajustement' in question_lower:
+        if 'underfitting' in question_lower or 'sous-ajustement' in question_lower or 'sous-apprentissage' in question_lower:
             if 'evaluation' in context and context['evaluation'] is not None:
                 underfitting = context['evaluation'].get('underfitting', {})
                 if underfitting and underfitting.get('detected'):
-                    return "Oui, de l'underfitting a été détecté. Le modèle ne performe pas bien sur les données d'entraînement."
-                return "Aucun underfitting significatif détecté."
-            return "Je n'ai pas encore évalué l'underfitting."
+                    return "Oui, un sous-apprentissage a été détecté. Le modèle fonctionne mal sur les données d'entraînement."
+                return "Aucun sous-apprentissage significatif détecté."
+            return "Je n'ai pas encore évalué le sous-apprentissage."
         
         # Réponse par défaut
-        return "Je peux vous aider avec les données, les modèles, les performances, le déséquilibre, l'overfitting/underfitting, et les pistes d'amélioration. Posez-moi une question plus spécifique !"
-
+        return "Je peux vous aider avec les données, les modèles, les performances, le déséquilibre, le surapprentissage et le sous-apprentissage, ainsi que les pistes d'amélioration. Posez-moi une question plus précise !"

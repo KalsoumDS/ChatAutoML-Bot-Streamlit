@@ -138,21 +138,49 @@ def plot_feature_importance(feature_importance: Dict[str, float], top_n: int = 1
         textposition='auto',
     ))
     fig.update_layout(
-        title=f"Top {top_n} Features les plus importantes",
+        title=f"Les {top_n} variables les plus importantes",
         xaxis_title="Importance",
-        yaxis_title="Features",
+        yaxis_title="Variables",
         template="plotly_white",
         height=max(400, len(features) * 30)
     )
     return fig
 
 
+MODEL_NAMES_FR = {
+    "LogisticRegression": "Régression logistique",
+    "RandomForestClassifier": "Forêt aléatoire",
+    "RandomForestRegressor": "Forêt aléatoire",
+    "GradientBoostingClassifier": "Boosting par gradient",
+    "GradientBoostingRegressor": "Boosting par gradient",
+    "KNeighborsClassifier": "K plus proches voisins",
+    "KNeighborsRegressor": "K plus proches voisins",
+    "LinearRegression": "Régression linéaire",
+    "XGBoostClassifier": "XGBoost",
+    "LightGBMClassifier": "LightGBM",
+}
+
+
+def format_model_name_fr(model: Any) -> str:
+    """Convertit un identifiant de modèle en libellé français lisible."""
+    name = str(model)
+    return MODEL_NAMES_FR.get(name, name)
+
+
 def plot_model_comparison(comparison_df: pd.DataFrame, metric: str = 'Best Score'):
     """Crée un graphique de comparaison des modèles"""
     fig = go.Figure()
     values = pd.to_numeric(comparison_df[metric], errors='coerce')
+    metric_labels = {
+        "Best Score": "Meilleur score",
+        "Accuracy": "Exactitude",
+        "F1 Macro": "Score F1 macro",
+        "F1 Weighted": "Score F1 pondéré",
+        "RMSE": "Racine de l’erreur quadratique moyenne",
+        "MAE": "Erreur absolue moyenne",
+    }
     fig.add_trace(go.Bar(
-        x=comparison_df['Model'],
+        x=comparison_df['Model'].map(format_model_name_fr),
         y=values,
         marker_color='mediumpurple',
         text=[f"{val:.4f}" if not pd.isna(val) else "N/A" for val in values],
@@ -161,7 +189,7 @@ def plot_model_comparison(comparison_df: pd.DataFrame, metric: str = 'Best Score
     fig.update_layout(
         title="Comparaison des performances des modèles",
         xaxis_title="Modèles",
-        yaxis_title=metric,
+        yaxis_title=metric_labels.get(metric, metric),
         template="plotly_white",
         height=400,
         xaxis={'tickangle': -45}
@@ -175,10 +203,10 @@ def plot_train_test_comparison(evaluation: Dict[str, Any], task_type: str):
     test_metrics = evaluation.get('test_metrics', {})
     if task_type == 'classification':
         metrics = ['accuracy', 'f1_macro', 'f1_weighted']
-        metric_labels = ['Accuracy', 'F1 Macro', 'F1 Weighted']
+        metric_labels = ['Exactitude', 'Score F1 macro', 'Score F1 pondéré']
     else:
         metrics = ['r2', 'rmse', 'mae']
-        metric_labels = ['R²', 'RMSE', 'MAE']
+        metric_labels = ['Coefficient de détermination (R²)', 'Racine de l’erreur quadratique moyenne', 'Erreur absolue moyenne']
     available_metrics, available_labels, train_values, test_values = [], [], [], []
     for metric, label in zip(metrics, metric_labels):
         if metric in train_metrics and metric in test_metrics:
@@ -190,7 +218,7 @@ def plot_train_test_comparison(evaluation: Dict[str, Any], task_type: str):
         return None
     fig = go.Figure()
     fig.add_trace(go.Bar(
-        name='Train', x=available_labels, y=train_values,
+        name='Entraînement', x=available_labels, y=train_values,
         marker_color='lightblue',
         text=[f"{v:.4f}" for v in train_values], textposition='auto',
     ))
@@ -200,8 +228,8 @@ def plot_train_test_comparison(evaluation: Dict[str, Any], task_type: str):
         text=[f"{v:.4f}" for v in test_values], textposition='auto',
     ))
     fig.update_layout(
-        title="Comparaison Train vs Test",
-        xaxis_title="Métriques", yaxis_title="Score",
+        title="Comparaison entre l’entraînement et le test",
+        xaxis_title="Indicateurs", yaxis_title="Score",
         template="plotly_white", height=400, barmode='group'
     )
     return fig
@@ -221,7 +249,7 @@ def plot_confusion_matrix(confusion_matrix_array: List[List[int]], class_names: 
         colorbar=dict(title="Nombre")
     ))
     fig.update_layout(
-        title="Matrice de Confusion",
+        title="Matrice de confusion",
         xaxis_title="Prédictions", yaxis_title="Vraies valeurs",
         template="plotly_white", height=400
     )
@@ -230,11 +258,18 @@ def plot_confusion_matrix(confusion_matrix_array: List[List[int]], class_names: 
 
 def create_summary_table(analysis: Dict[str, Any]) -> pd.DataFrame:
     """Crée un tableau récapitulatif du dataset"""
+    type_labels = {
+        "numeric": "Numérique",
+        "categorical": "Catégorielle",
+        "boolean": "Booléenne",
+        "datetime": "Date et heure",
+    }
     summary_data = []
     for col, info in analysis.get('columns', {}).items():
+        column_type = str(info['type'])
         summary_data.append({
             'Colonne': str(col),
-            'Type': str(info['type']),
+            'Type': type_labels.get(column_type.lower(), column_type),
             'Type Python': str(info['dtype']),
             'Valeurs uniques': int(info['unique_count']),
             'Valeurs manquantes': f"{info['missing_count']} ({info['missing_percentage']:.1f}%)"
@@ -255,16 +290,16 @@ def create_metrics_table(evaluation: Dict[str, Any], task_type: str) -> pd.DataF
     test_metrics = evaluation.get('test_metrics', {})
     if task_type == 'classification':
         metrics = {
-            'Accuracy': ('accuracy', 'accuracy'),
-            'F1 Macro': ('f1_macro', 'f1_macro'),
-            'F1 Weighted': ('f1_weighted', 'f1_weighted'),
-            'ROC AUC': ('roc_auc', 'roc_auc')
+            'Exactitude': ('accuracy', 'accuracy'),
+            'Score F1 macro': ('f1_macro', 'f1_macro'),
+            'Score F1 pondéré': ('f1_weighted', 'f1_weighted'),
+            'Aire sous la courbe ROC': ('roc_auc', 'roc_auc')
         }
     else:
         metrics = {
             'R²': ('r2', 'r2'),
-            'RMSE': ('rmse', 'rmse'),
-            'MAE': ('mae', 'mae')
+            'Racine de l’erreur quadratique moyenne': ('rmse', 'rmse'),
+            'Erreur absolue moyenne': ('mae', 'mae')
         }
     results = []
     for label, (train_key, test_key) in metrics.items():
@@ -276,7 +311,7 @@ def create_metrics_table(evaluation: Dict[str, Any], task_type: str) -> pd.DataF
             ecart_str = f"{abs(train_val - test_val):.4f}" if train_val is not None and test_val is not None else "N/A"
             results.append({
                 'Métrique': str(label),
-                'Train': train_str,
+                'Entraînement': train_str,
                 'Test': test_str,
                 'Écart': ecart_str
             })
@@ -314,9 +349,12 @@ def create_descriptive_stats_table(df: pd.DataFrame) -> pd.DataFrame:
     if len(numeric_cols) == 0:
         return None
     stats = df[numeric_cols].describe().T.reset_index()
-    stats.columns = ['Colonne', 'Count', 'Mean', 'Std', 'Min', '25%', '50%', '75%', 'Max']
+    stats.columns = [
+        'Colonne', 'Effectif', 'Moyenne', 'Écart-type', 'Minimum',
+        '1er quartile', 'Médiane', '3e quartile', 'Maximum',
+    ]
     # Garder les valeurs numériques (float) — pas de conversion en str
-    for col in ['Count', 'Mean', 'Std', 'Min', '25%', '50%', '75%', 'Max']:
+    for col in ['Effectif', 'Moyenne', 'Écart-type', 'Minimum', '1er quartile', 'Médiane', '3e quartile', 'Maximum']:
         if col in stats.columns:
             stats[col] = pd.to_numeric(stats[col], errors='coerce').round(4)
     stats['Colonne'] = stats['Colonne'].astype(str)
@@ -330,12 +368,12 @@ def create_preprocessing_summary_table(X_before: pd.DataFrame, X_after: np.ndarr
     for col in column_types.get('numeric', []):
         summary.append({'Colonne': str(col), 'Type': 'Numérique', 'Traitement': 'Imputation (médiane) + Standardisation', 'Statut': '✓ Traité'})
     for col in column_types.get('categorical', []):
-        summary.append({'Colonne': str(col), 'Type': 'Catégorielle', 'Traitement': 'Imputation (Unknown) + OneHotEncoding', 'Statut': '✓ Traité'})
+        summary.append({'Colonne': str(col), 'Type': 'Catégorielle', 'Traitement': 'Imputation (« inconnue ») + encodage one-hot', 'Statut': '✓ Traitée'})
     for col in column_types.get('boolean', []):
         summary.append({'Colonne': str(col), 'Type': 'Booléenne', 'Traitement': 'Imputation (mode) + Standardisation', 'Statut': '✓ Traité'})
     n_samples = X_after.shape[0] if len(X_after.shape) > 0 else 0
     n_features = X_after.shape[1] if len(X_after.shape) > 1 else 0
-    summary.append({'Colonne': 'TOTAL', 'Type': f'{X_before.shape[1]} colonnes', 'Traitement': f'→ {n_features} features', 'Statut': f'✓ {n_samples} échantillons'})
+    summary.append({'Colonne': 'TOTAL', 'Type': f'{X_before.shape[1]} colonnes', 'Traitement': f'→ {n_features} variables', 'Statut': f'✓ {n_samples} échantillons'})
     return pd.DataFrame(summary)
 
 
@@ -344,8 +382,8 @@ def create_train_test_split_table(X_train: np.ndarray, X_test: np.ndarray,
     """Crée un tableau récapitulatif du split train/test"""
     total = X_train.shape[0] + X_test.shape[0]
     split_data = [
-        {'Dataset': 'Train', 'Échantillons': X_train.shape[0], 'Features': X_train.shape[1], 'Proportion': f"{X_train.shape[0] / max(1, total) * 100:.1f}%"},
-        {'Dataset': 'Test',  'Échantillons': X_test.shape[0],  'Features': X_test.shape[1],  'Proportion': f"{X_test.shape[0] / max(1, total) * 100:.1f}%"},
-        {'Dataset': 'TOTAL', 'Échantillons': total,            'Features': X_train.shape[1], 'Proportion': '100%'},
+        {'Jeu de données': 'Entraînement', 'Échantillons': X_train.shape[0], 'Variables': X_train.shape[1], 'Proportion': f"{X_train.shape[0] / max(1, total) * 100:.1f}%"},
+        {'Jeu de données': 'Test',  'Échantillons': X_test.shape[0],  'Variables': X_test.shape[1],  'Proportion': f"{X_test.shape[0] / max(1, total) * 100:.1f}%"},
+        {'Jeu de données': 'TOTAL', 'Échantillons': total,            'Variables': X_train.shape[1], 'Proportion': '100%'},
     ]
     return pd.DataFrame(split_data)
